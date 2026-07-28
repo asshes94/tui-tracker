@@ -2,33 +2,59 @@ name: TUI Tracker
 
 on:
   schedule:
-    - cron: '0 7 * * *'
+    - cron: "0 7 * * *"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install packages
+      - name: Install Python packages
         run: pip install -r requirements.txt
 
-      - name: Run tracker
+      - name: Install Chromium and dependencies
+        run: playwright install --with-deps chromium
+
+      - name: Run TUI tracker
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: python tracker.py
-      - name: Install packages
-        run: pip install -r requirements.txt
 
-      - name: Install Playwright browser
-        run: playwright install chromium
+      - name: Upload debug files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tui-debug
+          path: |
+            debug_page_text.txt
+            debug_screenshot.png
+          if-no-files-found: ignore
+          retention-days: 7
 
-      - name: Install Playwright dependencies
-        run: playwright install-deps
-
-      - name: Run tracker
-        run: python tracker.py
+      - name: Save price history
+        if: always()
+        run: |
+          if git diff --quiet -- history.json; then
+            echo "No history change."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add history.json
+          git commit -m "Update TUI price history"
+          git push
