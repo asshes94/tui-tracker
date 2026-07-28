@@ -21,3 +21,14 @@ jobs:
 
       - name: Run tracker
         run: python tracker.py
+      - name: Install packages
+        run: pip install -r requirements.txt
+
+      - name: Install Playwright browser
+        run: playwright install chromium
+
+      - name: Install Playwright dependencies
+        run: playwright install-deps
+
+      - name: Run tracker
+        run: python tracker.py
